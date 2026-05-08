@@ -1,6 +1,8 @@
 import asyncio
 import os
+import re
 from pathlib import Path
+from urllib.parse import urlparse
 
 import asyncpg
 
@@ -16,6 +18,44 @@ def database_url() -> str:
     return os.getenv("DATABASE_URL", f"postgresql://{user}:{password}@{host}:{port}/{db}")
 
 
+def _validate_database_name(name: str) -> str:
+    if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", name):
+        raise ValueError(f"Invalid database name: {name}")
+    return name
+
+
+async def _ensure_database_exists() -> None:
+    url = database_url()
+    parsed = urlparse(url)
+    target_db = parsed.path.lstrip("/")
+    if not target_db:
+        raise ValueError("Database URL must contain a target database")
+    _validate_database_name(target_db)
+
+    host = parsed.hostname or os.getenv("POSTGRES_HOST", "postgres")
+    port = parsed.port or int(os.getenv("POSTGRES_PORT", "5432"))
+    user = parsed.username or os.getenv("POSTGRES_USER", "game")
+    password = parsed.password or os.getenv("POSTGRES_PASSWORD", "change-this-password")
+    maintenance_db = "postgres"
+
+    conn = await asyncpg.connect(
+        user=user,
+        password=password,
+        host=host,
+        port=port,
+        database=maintenance_db,
+    )
+    try:
+        exists = await conn.fetchval(
+            "SELECT 1 FROM pg_database WHERE datname = $1",
+            target_db,
+        )
+        if not exists:
+            await conn.execute(f"CREATE DATABASE {target_db}")
+    finally:
+        await conn.close()
+
+
 async def connect(max_retries: int = 20, initial_delay: float = 1.0, max_delay: float = 5.0) -> None:
     global _pool
     if _pool is not None:
@@ -25,9 +65,10 @@ async def connect(max_retries: int = 20, initial_delay: float = 1.0, max_delay: 
     last_exc: Exception | None = None
     while attempt < max_retries:
         try:
+            await _ensure_database_exists()
             _pool = await asyncpg.create_pool(database_url(), min_size=1, max_size=10)
             return
-        except (OSError, ConnectionRefusedError, asyncpg.PostgresError) as exc:
+        except (OSError, ConnectionRefusedError, asyncpg.PostgresError, ValueError) as exc:
             last_exc = exc
             attempt += 1
             wait = min(initial_delay * attempt, max_delay)
