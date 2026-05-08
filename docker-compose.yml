@@ -1,0 +1,67 @@
+services:
+  game-api:
+    build:
+      context: ./game-api
+    container_name: tabletop-gpt-api
+    env_file:
+      - .env
+    ports:
+      - "${GAME_PORT:-8080}:8080"
+    volumes:
+      - ./data/knowledge:/app/data/knowledge
+    depends_on:
+      - postgres
+      - redis
+      - qdrant
+      - ollama
+    command: uvicorn main:app --host 0.0.0.0 --port 8080
+
+  game-worker:
+    build:
+      context: ./game-api
+    container_name: tabletop-gpt-worker
+    env_file:
+      - .env
+    volumes:
+      - ./data/knowledge:/app/data/knowledge
+    depends_on:
+      - postgres
+      - redis
+      - qdrant
+      - ollama
+    command: python worker.py
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: tabletop-gpt-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-game}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-this-password}
+      POSTGRES_DB: ${POSTGRES_DB:-tabletop_gpt}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    container_name: tabletop-gpt-redis
+    command: redis-server --appendonly yes
+
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: tabletop-gpt-qdrant
+    volumes:
+      - qdrant_data:/qdrant/storage
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: tabletop-gpt-ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama:/root/.ollama
+    gpus: all
+
+volumes:
+  pgdata:
+  ollama:
+  qdrant_data:

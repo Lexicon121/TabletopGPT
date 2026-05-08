@@ -1,0 +1,9 @@
+{
+  "id": "custom",
+  "name": "Custom Ruleset",
+  "default_roll": "d20",
+  "skills": ["might", "agility", "mind", "presence"],
+  "health_statuses": ["healthy", "wounded", "bloodied", "critical", "unconscious", "dying", "dead"],
+  "conditions": ["bleeding", "poisoned", "burning", "stunned", "blinded", "frightened", "exhausted"],
+  "notes": "A minimal flexible ruleset for homebrew campaigns."
+}

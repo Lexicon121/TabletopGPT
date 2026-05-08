@@ -1,0 +1,31 @@
+.env
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.venv/
+venv/
+node_modules/
+dist/
+build/
+
+# Local/private knowledge files
+data/knowledge/uploads/*
+data/knowledge/processed/*
+data/knowledge/indexes/*
+!data/knowledge/uploads/.gitkeep
+!data/knowledge/processed/.gitkeep
+!data/knowledge/indexes/.gitkeep
+*.pdf
+*.epub
+*.docx
+*.xlsx
+*.xls
+
+# Local database/model artifacts
+*.sqlite
+*.db
+ollama/
+pgdata/
+qdrant_data/

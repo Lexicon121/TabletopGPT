@@ -1,0 +1,3 @@
+Summarize the campaign through the provided round.
+Focus on durable facts, unresolved hooks, NPCs, locations, party goals, and consequences.
+Do not invent new events or change campaign truth.

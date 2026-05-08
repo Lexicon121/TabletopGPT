@@ -1,0 +1,9 @@
+{
+  "id": "cyberpunk_style",
+  "name": "Cyberpunk Action Style",
+  "default_roll": "d20",
+  "dice": ["d20", "1d20+4", "2d6", "3d8-1"],
+  "skills": ["reflex", "hacking", "cool", "tech", "streetwise", "firearms", "drive"],
+  "health_statuses": ["healthy", "wounded", "bloodied", "critical", "unconscious", "dying", "dead"],
+  "conditions": ["bleeding", "burning", "stunned", "blinded", "hacked", "jammed", "signal_jammed", "malware_infected", "EMP_shocked"]
+}

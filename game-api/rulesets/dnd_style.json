@@ -1,0 +1,10 @@
+{
+  "id": "dnd_style",
+  "name": "D20 Fantasy Style",
+  "default_roll": "d20",
+  "dice": ["d20", "1d20+4", "2d6", "3d8-1"],
+  "skills": ["athletics", "stealth", "arcana", "history", "insight", "persuasion", "survival"],
+  "health_statuses": ["healthy", "wounded", "bloodied", "critical", "unconscious", "dying", "dead"],
+  "conditions": ["bleeding", "poisoned", "burning", "stunned", "blinded", "frightened", "exhausted"],
+  "death_save": true
+}

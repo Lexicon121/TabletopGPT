@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>TabletopGPT</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        background: #111318;
+        color: #eff2f5;
+      }
+      body { margin: 0; }
+      main { max-width: 1180px; margin: 0 auto; padding: 24px; }
+      h1 { margin: 0 0 6px; font-size: 32px; letter-spacing: 0; }
+      h2 { margin: 0 0 12px; font-size: 18px; }
+      p { color: #aeb7c2; }
+      .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
+      section, form { border: 1px solid #2a3038; border-radius: 8px; padding: 16px; background: #171a21; }
+      label { display: grid; gap: 6px; margin-bottom: 10px; color: #cbd3dc; font-size: 13px; }
+      input, select, textarea, button {
+        border: 1px solid #39414d;
+        border-radius: 6px;
+        background: #0f1217;
+        color: #eff2f5;
+        padding: 10px;
+        font: inherit;
+      }
+      textarea { min-height: 86px; resize: vertical; }
+      button { cursor: pointer; background: #25636f; border-color: #328090; }
+      button.secondary { background: #292f39; border-color: #46515f; }
+      ul { list-style: none; padding: 0; margin: 0; display: grid; gap: 8px; }
+      li { border: 1px solid #2a3038; border-radius: 6px; padding: 10px; }
+      .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+      .muted { color: #8d98a6; font-size: 13px; }
+      .log { min-height: 160px; max-height: 320px; overflow: auto; background: #0d1015; }
+      .placeholder { opacity: 0.75; border-style: dashed; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <h1>TabletopGPT</h1>
+        <p>A self-hosted multiplayer tabletop RPG engine powered by local LLMs.</p>
+      </header>
+
+      <div class="grid">
+        <section>
+          <h2>Player</h2>
+          <label>Username <input id="username" maxlength="40" autocomplete="nickname" /></label>
+          <p class="muted">Used for this local scaffold. Full auth comes later.</p>
+        </section>
+
+        <form id="createCampaignForm">
+          <h2>Create Campaign</h2>
+          <label>Name <input id="campaignName" maxlength="80" required /></label>
+          <label>DM Mode
+            <select id="dmMode">
+              <option value="llm_dm">LLM DM</option>
+              <option value="hybrid">Hybrid</option>
+              <option value="human_gm">Human GM</option>
+            </select>
+          </label>
+          <label>Password <input id="campaignPassword" maxlength="200" type="password" /></label>
+          <label>Max Players <input id="maxPlayers" type="number" min="1" max="12" value="12" /></label>
+          <label><span><input id="listed" type="checkbox" checked /> Listed</span></label>
+          <button type="submit">Create</button>
+        </form>
+
+        <section>
+          <h2>Campaigns</h2>
+          <ul id="campaignList"></ul>
+        </section>
+
+        <form id="joinForm">
+          <h2>Join Campaign</h2>
+          <label>Campaign ID <input id="joinCampaignId" required /></label>
+          <label>Password <input id="joinPassword" maxlength="200" type="password" /></label>
+          <button type="submit">Join</button>
+        </form>
+
+        <form id="characterForm">
+          <h2>Create Character</h2>
+          <label>Campaign ID <input id="characterCampaignId" required /></label>
+          <label>Name <input id="characterName" maxlength="80" required /></label>
+          <button type="submit">Create Character</button>
+        </form>
+
+        <section>
+          <h2>Live Session</h2>
+          <label>Campaign ID <input id="wsCampaignId" /></label>
+          <div class="row">
+            <button id="connectWs" type="button">Connect WebSocket</button>
+            <button id="resolveRound" type="button" class="secondary">Resolve Round</button>
+          </div>
+          <label>Official Action <textarea id="officialAction" maxlength="1000"></textarea></label>
+          <button id="submitAction" type="button">Submit Official Action</button>
+        </section>
+
+        <section>
+          <h2>Presence</h2>
+          <ul id="presence"></ul>
+        </section>
+
+        <section>
+          <h2>Event Log</h2>
+          <ul id="eventLog" class="log"></ul>
+        </section>
+
+        <section class="placeholder">
+          <h2>Ask the DM</h2>
+          <label>Question <textarea id="askQuestion" maxlength="1000"></textarea></label>
+          <label>Mode
+            <select id="askMode">
+              <option value="rules_help">Rules Help</option>
+              <option value="character_help">Character Help</option>
+              <option value="campaign_recap">Campaign Recap</option>
+              <option value="lore">Lore</option>
+              <option value="scene_clarification">Scene Clarification</option>
+              <option value="app_help">App Help</option>
+            </select>
+          </label>
+          <button id="askDm" type="button" class="secondary">Ask</button>
+          <p id="askAnswer"></p>
+        </section>
+
+        <section class="placeholder"><h2>Party Chat</h2><p>Placeholder for player coordination chat.</p></section>
+        <section class="placeholder"><h2>Admin Controls</h2><p>Placeholder for DM mode, hybrid drafts, and GM takeover controls.</p></section>
+        <section class="placeholder"><h2>RAG Upload</h2><p>Placeholder for local knowledge ingestion.</p></section>
+      </div>
+    </main>
+
+    <script>
+      const $ = (id) => document.getElementById(id);
+      let socket = null;
+
+      function appendText(list, text) {
+        const item = document.createElement("li");
+        item.textContent = text;
+        list.prepend(item);
+      }
+
+      function username() {
+        return $("username").value.trim();
+      }
+
+      async function api(path, options = {}) {
+        const response = await fetch(path, {
+          headers: { "Content-Type": "application/json" },
+          ...options
+        });
+        if (!response.ok) throw new Error(await response.text());
+        return response.json();
+      }
+
+      async function loadCampaigns() {
+        const campaigns = await api("/api/campaigns");
+        $("campaignList").textContent = "";
+        campaigns.forEach((campaign) => {
+          appendText($("campaignList"), `${campaign.name} | ${campaign.dm_mode} | ${campaign.id}`);
+        });
+      }
+
+      $("createCampaignForm").addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const created = await api("/api/campaigns", {
+          method: "POST",
+          body: JSON.stringify({
+            owner_username: username(),
+            name: $("campaignName").value,
+            password: $("campaignPassword").value || null,
+            listed: $("listed").checked,
+            max_players: Number($("maxPlayers").value),
+            dm_mode: $("dmMode").value
+          })
+        });
+        $("joinCampaignId").value = created.id;
+        $("wsCampaignId").value = created.id;
+        await loadCampaigns();
+      });
+
+      $("joinForm").addEventListener("submit", async (event) => {
+        event.preventDefault();
+        await api(`/api/campaigns/${$("joinCampaignId").value}/join`, {
+          method: "POST",
+          body: JSON.stringify({ username: username(), password: $("joinPassword").value || null })
+        });
+      });
+
+      $("characterForm").addEventListener("submit", async (event) => {
+        event.preventDefault();
+        await api(`/api/campaigns/${$("characterCampaignId").value}/characters`, {
+          method: "POST",
+          body: JSON.stringify({ username: username(), name: $("characterName").value, sheet: {} })
+        });
+      });
+
+      $("connectWs").addEventListener("click", () => {
+        const url = `${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/ws/${$("wsCampaignId").value}/${encodeURIComponent(username())}`;
+        socket = new WebSocket(url);
+        socket.onmessage = (event) => {
+          const message = JSON.parse(event.data);
+          if (message.type === "presence") {
+            $("presence").textContent = "";
+            Object.keys(message.users).forEach((name) => appendText($("presence"), name));
+          } else if (message.type === "party_chat") {
+            appendText($("eventLog"), `${message.username}: ${message.text}`);
+          } else {
+            appendText($("eventLog"), JSON.stringify(message));
+          }
+        };
+      });
+
+      $("submitAction").addEventListener("click", () => {
+        if (!socket || socket.readyState !== WebSocket.OPEN) return;
+        socket.send(JSON.stringify({ type: "official_action", text: $("officialAction").value }));
+      });
+
+      $("resolveRound").addEventListener("click", async () => {
+        await api(`/api/campaigns/${$("wsCampaignId").value}/resolve-round`, {
+          method: "POST",
+          body: JSON.stringify({ username: username() })
+        });
+      });
+
+      $("askDm").addEventListener("click", async () => {
+        const answer = await api(`/api/campaigns/${$("wsCampaignId").value}/ask`, {
+          method: "POST",
+          body: JSON.stringify({ username: username(), question: $("askQuestion").value, mode: $("askMode").value })
+        });
+        $("askAnswer").textContent = answer.answer;
+      });
+
+      loadCampaigns().catch((error) => appendText($("eventLog"), error.message));
+    </script>
+  </body>
+</html>
