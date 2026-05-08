@@ -1,4 +1,6 @@
-CREATE EXTENSION IF NOT EXISTS pgcrypto;
+DO $$ BEGIN
+  CREATE EXTENSION IF NOT EXISTS pgcrypto;
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 DO $$ BEGIN
   CREATE TYPE campaign_role AS ENUM ('owner', 'human_gm', 'co_gm', 'player', 'spectator');

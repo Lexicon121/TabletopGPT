@@ -55,7 +55,11 @@ def pool() -> asyncpg.Pool:
 async def install_schema() -> None:
     schema = Path(__file__).with_name("models.sql").read_text(encoding="utf-8")
     async with pool().acquire() as conn:
-        await conn.execute(schema)
+        await conn.execute("SELECT pg_advisory_lock(907651234)")
+        try:
+            await conn.execute(schema)
+        finally:
+            await conn.execute("SELECT pg_advisory_unlock(907651234)")
 
 
 async def fetch(query: str, *args):
