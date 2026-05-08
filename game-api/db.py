@@ -1,3 +1,4 @@
+import asyncio
 import os
 from pathlib import Path
 
@@ -15,10 +16,27 @@ def database_url() -> str:
     return os.getenv("DATABASE_URL", f"postgresql://{user}:{password}@{host}:{port}/{db}")
 
 
-async def connect() -> None:
+async def connect(max_retries: int = 20, initial_delay: float = 1.0, max_delay: float = 5.0) -> None:
     global _pool
-    if _pool is None:
-        _pool = await asyncpg.create_pool(database_url(), min_size=1, max_size=10)
+    if _pool is not None:
+        return
+
+    attempt = 0
+    last_exc: Exception | None = None
+    while attempt < max_retries:
+        try:
+            _pool = await asyncpg.create_pool(database_url(), min_size=1, max_size=10)
+            return
+        except (OSError, ConnectionRefusedError, asyncpg.PostgresError) as exc:
+            last_exc = exc
+            attempt += 1
+            wait = min(initial_delay * attempt, max_delay)
+            print(f"Database not ready yet, retrying in {wait:.1f}s ({attempt}/{max_retries})...")
+            await asyncio.sleep(wait)
+
+    raise RuntimeError(
+        f"Unable to connect to database after {max_retries} attempts: {last_exc}"
+    ) from last_exc
 
 
 async def close() -> None:
