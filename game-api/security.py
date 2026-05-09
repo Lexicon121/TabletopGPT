@@ -21,6 +21,11 @@ PROMPT_INJECTION_PATTERNS = (
 
 
 def hash_password(password: str) -> str:
+    if len(password.encode("utf-8")) > 72:
+        raise HTTPException(
+            400,
+            "password must be 72 bytes or fewer when UTF-8 encoded; please choose a shorter password",
+        )
     return pwd_context.hash(password)
 
 

@@ -9,7 +9,7 @@ async def enqueue_resolve_round(campaign_id: str, username: str):
     await db.execute(
         """
         INSERT INTO campaign_jobs (campaign_id, job_type, payload)
-        VALUES ($1::uuid, 'resolve_round', jsonb_build_object('requested_by', $2))
+        VALUES ($1::uuid, 'resolve_round', jsonb_build_object('requested_by', $2::text))
         ON CONFLICT DO NOTHING
         """,
         campaign_id,

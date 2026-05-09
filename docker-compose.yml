@@ -43,7 +43,7 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-game}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-game} -d ${POSTGRES_DB:-tabletop_gpt}"]
       interval: 5s
       timeout: 5s
       retries: 10
